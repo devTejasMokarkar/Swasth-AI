@@ -1,45 +1,59 @@
-# [Project name]
+# AI Personal Health Companion
 
-_Replace the heading above with the project's name, and this line with one sentence describing what this app does for users._
+A full-stack mobile health app built with Expo + React Native (mobile) and Express (API server).
 
-## Run & Operate
-
-- `pnpm --filter @workspace/api-server run dev` — run the API server (port 5000)
-- `pnpm run typecheck` — full typecheck across all packages
-- `pnpm run build` — typecheck + build all packages
-- `pnpm --filter @workspace/api-spec run codegen` — regenerate API hooks and Zod schemas from the OpenAPI spec
-- `pnpm --filter @workspace/db run push` — push DB schema changes (dev only)
-- Required env: `DATABASE_URL` — Postgres connection string
+## What it does
+- **Daily AI health card** — personalized recommendations powered by Cohere, cached per user per day
+- **Symptom checker** — describe symptoms, get a risk tier (home care / monitor / see doctor / emergency) with AI-generated advice and an emergency keyword gate
+- **Medication tracker** — add medications, log taken/missed/snoozed with haptic feedback
+- **Vital readings** — blood pressure, blood sugar, and weight tracking with reference ranges
+- **Health files** — upload lab reports and prescriptions (PDF/image) stored in Postgres
+- **Credit meter** — 100 free AI credits/month, tracked per user and surfaced in the Profile tab
 
 ## Stack
 
-- pnpm workspaces, Node.js 24, TypeScript 5.9
-- API: Express 5
-- DB: PostgreSQL + Drizzle ORM
-- Validation: Zod (`zod/v4`), `drizzle-zod`
-- API codegen: Orval (from OpenAPI spec)
-- Build: esbuild (CJS bundle)
+| Layer | Tech |
+|---|---|
+| Mobile | Expo 54 (SDK), React Native, Expo Router, TanStack Query |
+| API | Express + TypeScript, built with esbuild |
+| Database | PostgreSQL via Drizzle ORM |
+| AI | Cohere (`command-r-plus`) via backend proxy |
+| Auth | Device-ID (UUID stored in AsyncStorage, sent as `Authorization: Bearer <id>`) |
+| Fonts | Inter (via `@expo-google-fonts/inter`) |
 
-## Where things live
+## Artifacts
 
-_Populate as you build — short repo map plus pointers to the source-of-truth file for DB schema, API contracts, theme files, etc._
+- `artifacts/api-server` — Express REST API, runs on `$PORT`
+- `artifacts/mobile` — Expo app (view in Expo Go or the preview pane)
+- `artifacts/mockup-sandbox` — Canvas / design sandbox (untouched)
 
-## Architecture decisions
+## Key files
 
-_Populate as you build — non-obvious choices a reader couldn't infer from the code (3-5 bullets)._
+- `lib/db/src/schema/index.ts` — Drizzle schema for all tables
+- `lib/api-spec/openapi.yaml` — OpenAPI spec (codegen source)
+- `lib/api-client-react/src/generated/api.ts` — generated React Query hooks
+- `artifacts/api-server/src/routes/` — all API route handlers
+- `artifacts/api-server/src/lib/cohere.ts` — Cohere AI integration
+- `artifacts/mobile/contexts/UserContext.tsx` — device-ID auth + onboarding state
+- `artifacts/mobile/constants/colors.ts` — full light/dark color palette
 
-## Product
+## Running locally
 
-_Describe the high-level user-facing capabilities of this app once they exist._
+```bash
+# Start API server
+pnpm --filter @workspace/api-server run dev
+
+# Start Expo app
+pnpm --filter @workspace/mobile run dev
+
+# Push DB schema (first time or after schema changes)
+pnpm --filter @workspace/db run push
+```
 
 ## User preferences
 
-_Populate as you build — explicit user instructions worth remembering across sessions._
-
-## Gotchas
-
-_Populate as you build — sharp edges, "always run X before Y" rules._
-
-## Pointers
-
-- See the `pnpm-workspace` skill for workspace structure, TypeScript setup, and package details
+- Cohere model: `command-r-plus` (override via `COHERE_MODEL` env var)
+- Free tier: 100 AI credits per user per 30-day rolling window
+- Emergency keyword check runs before any Cohere call — returns emergency tier immediately without burning credits
+- Daily recommendations are cached per user per calendar day to avoid repeat credit usage
+- All AI calls go through the backend; the mobile app never calls Cohere directly

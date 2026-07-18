@@ -3,20 +3,34 @@ info:
   # Do not change the title, if the title changes, the import paths will be broken
   title: Api
   version: 0.1.0
-  description: API specification
+  description: AI Personal Health Companion API
 servers:
   - url: /api
     description: Base API path
 tags:
   - name: health
-    description: Health operations
+    description: Health check
+  - name: profile
+    description: Medical profile operations
+  - name: medications
+    description: Medication management
+  - name: symptoms
+    description: Symptom logging and analysis
+  - name: readings
+    description: Vital readings (BP, sugar, weight)
+  - name: files
+    description: Health files (reports and prescriptions)
+  - name: recommendations
+    description: Daily health recommendations
+  - name: credits
+    description: AI credit metering
+
 paths:
   /healthz:
     get:
       operationId: healthCheck
       tags: [health]
       summary: Health check
-      description: Returns server health status
       responses:
         "200":
           description: Healthy
@@ -24,6 +38,457 @@ paths:
             application/json:
               schema:
                 $ref: "#/components/schemas/HealthStatus"
+
+  /profile:
+    get:
+      operationId: getProfile
+      tags: [profile]
+      summary: Get user medical profile
+      parameters:
+        - name: x-user-id
+          in: header
+          required: true
+          schema:
+            type: string
+      responses:
+        "200":
+          description: Medical profile
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ProfileResponse"
+        "404":
+          description: Profile not found
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorResponse"
+    post:
+      operationId: saveProfile
+      tags: [profile]
+      summary: Create or update medical profile
+      parameters:
+        - name: x-user-id
+          in: header
+          required: true
+          schema:
+            type: string
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/ProfileInput"
+      responses:
+        "200":
+          description: Profile saved
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ProfileResponse"
+
+  /medications:
+    get:
+      operationId: getMedications
+      tags: [medications]
+      summary: List user medications
+      parameters:
+        - name: x-user-id
+          in: header
+          required: true
+          schema:
+            type: string
+      responses:
+        "200":
+          description: List of medications
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  medications:
+                    type: array
+                    items:
+                      $ref: "#/components/schemas/Medication"
+                required: [medications]
+    post:
+      operationId: addMedication
+      tags: [medications]
+      summary: Add a medication
+      parameters:
+        - name: x-user-id
+          in: header
+          required: true
+          schema:
+            type: string
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/MedicationInput"
+      responses:
+        "201":
+          description: Medication added
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Medication"
+
+  /medications/{id}:
+    patch:
+      operationId: updateMedication
+      tags: [medications]
+      summary: Update a medication
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema:
+            type: string
+        - name: x-user-id
+          in: header
+          required: true
+          schema:
+            type: string
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/MedicationInput"
+      responses:
+        "200":
+          description: Updated medication
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Medication"
+    delete:
+      operationId: deleteMedication
+      tags: [medications]
+      summary: Delete a medication
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema:
+            type: string
+        - name: x-user-id
+          in: header
+          required: true
+          schema:
+            type: string
+      responses:
+        "200":
+          description: Deleted
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/SuccessResponse"
+
+  /medications/{id}/log:
+    post:
+      operationId: logMedication
+      tags: [medications]
+      summary: Log medication status (taken/missed/snoozed)
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema:
+            type: string
+        - name: x-user-id
+          in: header
+          required: true
+          schema:
+            type: string
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/MedicationLogInput"
+      responses:
+        "201":
+          description: Log entry created
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/MedicationLog"
+    get:
+      operationId: getMedicationLogs
+      tags: [medications]
+      summary: Get logs for a medication
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema:
+            type: string
+        - name: x-user-id
+          in: header
+          required: true
+          schema:
+            type: string
+      responses:
+        "200":
+          description: Medication logs
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  logs:
+                    type: array
+                    items:
+                      $ref: "#/components/schemas/MedicationLog"
+                required: [logs]
+
+  /symptoms:
+    get:
+      operationId: getSymptomLogs
+      tags: [symptoms]
+      summary: Get symptom log history
+      parameters:
+        - name: x-user-id
+          in: header
+          required: true
+          schema:
+            type: string
+        - name: limit
+          in: query
+          schema:
+            type: integer
+            default: 20
+      responses:
+        "200":
+          description: Symptom logs
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  logs:
+                    type: array
+                    items:
+                      $ref: "#/components/schemas/SymptomLog"
+                required: [logs]
+    post:
+      operationId: analyzeSymptoms
+      tags: [symptoms]
+      summary: Log symptoms and get AI analysis
+      parameters:
+        - name: x-user-id
+          in: header
+          required: true
+          schema:
+            type: string
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/SymptomInput"
+      responses:
+        "200":
+          description: Analysis result
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/SymptomLog"
+        "402":
+          description: Insufficient credits
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorResponse"
+        "503":
+          description: AI service unavailable
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorResponse"
+
+  /readings:
+    get:
+      operationId: getReadings
+      tags: [readings]
+      summary: Get vital readings history
+      parameters:
+        - name: x-user-id
+          in: header
+          required: true
+          schema:
+            type: string
+        - name: type
+          in: query
+          schema:
+            type: string
+            enum: [bp, sugar, weight]
+        - name: limit
+          in: query
+          schema:
+            type: integer
+            default: 30
+      responses:
+        "200":
+          description: Readings list
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  readings:
+                    type: array
+                    items:
+                      $ref: "#/components/schemas/Reading"
+                required: [readings]
+    post:
+      operationId: addReading
+      tags: [readings]
+      summary: Add a vital reading
+      parameters:
+        - name: x-user-id
+          in: header
+          required: true
+          schema:
+            type: string
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/ReadingInput"
+      responses:
+        "201":
+          description: Reading added
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Reading"
+
+  /files:
+    get:
+      operationId: getFiles
+      tags: [files]
+      summary: List health files
+      parameters:
+        - name: x-user-id
+          in: header
+          required: true
+          schema:
+            type: string
+        - name: type
+          in: query
+          schema:
+            type: string
+            enum: [report, prescription]
+      responses:
+        "200":
+          description: Files list
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  files:
+                    type: array
+                    items:
+                      $ref: "#/components/schemas/HealthFile"
+                required: [files]
+    post:
+      operationId: uploadFile
+      tags: [files]
+      summary: Upload a health file
+      parameters:
+        - name: x-user-id
+          in: header
+          required: true
+          schema:
+            type: string
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/FileUploadInput"
+      responses:
+        "201":
+          description: File uploaded
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/HealthFile"
+
+  /files/{id}:
+    delete:
+      operationId: deleteFile
+      tags: [files]
+      summary: Delete a health file
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema:
+            type: string
+        - name: x-user-id
+          in: header
+          required: true
+          schema:
+            type: string
+      responses:
+        "200":
+          description: Deleted
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/SuccessResponse"
+
+  /daily-recommendation:
+    get:
+      operationId: getDailyRecommendation
+      tags: [recommendations]
+      summary: Get today's personalized health recommendation (cached per user per day)
+      parameters:
+        - name: x-user-id
+          in: header
+          required: true
+          schema:
+            type: string
+      responses:
+        "200":
+          description: Daily recommendation
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/DailyRecommendation"
+        "402":
+          description: Insufficient credits
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorResponse"
+
+  /credits:
+    get:
+      operationId: getCredits
+      tags: [credits]
+      summary: Get remaining AI credits for current cycle
+      parameters:
+        - name: x-user-id
+          in: header
+          required: true
+          schema:
+            type: string
+      responses:
+        "200":
+          description: Credit info
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/CreditsResponse"
+
 components:
   schemas:
     HealthStatus:
@@ -31,6 +496,344 @@ components:
       properties:
         status:
           type: string
-      required:
-        - status
+      required: [status]
 
+    ErrorResponse:
+      type: object
+      properties:
+        error:
+          type: string
+        message:
+          type: string
+      required: [error]
+
+    SuccessResponse:
+      type: object
+      properties:
+        success:
+          type: boolean
+      required: [success]
+
+    ProfileInput:
+      type: object
+      properties:
+        name:
+          type: string
+        age:
+          type: integer
+          minimum: 1
+          maximum: 120
+        gender:
+          type: string
+          enum: [male, female, other]
+        weightKg:
+          type: number
+        conditions:
+          type: array
+          items:
+            type: string
+            enum: [blood_pressure, diabetes, thyroid, none]
+        medicationsText:
+          type: string
+        historyText:
+          type: string
+      required: [age, gender, weightKg, conditions]
+
+    ProfileResponse:
+      type: object
+      properties:
+        id:
+          type: string
+        userId:
+          type: string
+        name:
+          type: string
+        age:
+          type: integer
+        gender:
+          type: string
+        weightKg:
+          type: number
+        conditions:
+          type: array
+          items:
+            type: string
+        medicationsText:
+          type: string
+        historyText:
+          type: string
+        createdAt:
+          type: string
+          format: date-time
+        updatedAt:
+          type: string
+          format: date-time
+      required: [id, userId, age, gender, weightKg, conditions, createdAt, updatedAt]
+
+    MedicationInput:
+      type: object
+      properties:
+        name:
+          type: string
+        dose:
+          type: string
+        condition:
+          type: string
+        timesPerDay:
+          type: integer
+          minimum: 1
+          maximum: 8
+        withFood:
+          type: boolean
+        active:
+          type: boolean
+      required: [name, dose, timesPerDay]
+
+    Medication:
+      type: object
+      properties:
+        id:
+          type: string
+        userId:
+          type: string
+        name:
+          type: string
+        dose:
+          type: string
+        condition:
+          type: string
+        timesPerDay:
+          type: integer
+        withFood:
+          type: boolean
+        active:
+          type: boolean
+        createdAt:
+          type: string
+          format: date-time
+      required: [id, userId, name, dose, timesPerDay, withFood, active, createdAt]
+
+    MedicationLogInput:
+      type: object
+      properties:
+        status:
+          type: string
+          enum: [taken, missed, snoozed]
+        scheduledTime:
+          type: string
+          format: date-time
+      required: [status]
+
+    MedicationLog:
+      type: object
+      properties:
+        id:
+          type: string
+        medicationId:
+          type: string
+        userId:
+          type: string
+        status:
+          type: string
+          enum: [taken, missed, snoozed]
+        scheduledTime:
+          type: string
+          format: date-time
+        loggedAt:
+          type: string
+          format: date-time
+      required: [id, medicationId, userId, status, loggedAt]
+
+    SymptomInput:
+      type: object
+      properties:
+        inputText:
+          type: string
+          minLength: 3
+      required: [inputText]
+
+    SymptomLog:
+      type: object
+      properties:
+        id:
+          type: string
+        userId:
+          type: string
+        inputText:
+          type: string
+        riskScore:
+          type: integer
+          minimum: 0
+          maximum: 100
+        tier:
+          type: string
+          enum: [home_care, monitor, see_doctor_24h, emergency]
+        aiReason:
+          type: string
+        advice:
+          type: array
+          items:
+            type: string
+        isEmergency:
+          type: boolean
+        createdAt:
+          type: string
+          format: date-time
+      required: [id, userId, inputText, riskScore, tier, aiReason, advice, isEmergency, createdAt]
+
+    ReadingInput:
+      type: object
+      properties:
+        type:
+          type: string
+          enum: [bp, sugar, weight]
+        systolic:
+          type: number
+          description: For BP readings - systolic value
+        diastolic:
+          type: number
+          description: For BP readings - diastolic value
+        value:
+          type: number
+          description: For sugar (mg/dL) or weight (kg) readings
+        note:
+          type: string
+      required: [type]
+
+    Reading:
+      type: object
+      properties:
+        id:
+          type: string
+        userId:
+          type: string
+        type:
+          type: string
+          enum: [bp, sugar, weight]
+        systolic:
+          type: number
+        diastolic:
+          type: number
+        value:
+          type: number
+        note:
+          type: string
+        createdAt:
+          type: string
+          format: date-time
+      required: [id, userId, type, createdAt]
+
+    FileUploadInput:
+      type: object
+      properties:
+        fileType:
+          type: string
+          enum: [report, prescription]
+        filename:
+          type: string
+        title:
+          type: string
+        base64Data:
+          type: string
+          description: Base64-encoded file content
+        mimeType:
+          type: string
+      required: [fileType, filename, base64Data, mimeType]
+
+    HealthFile:
+      type: object
+      properties:
+        id:
+          type: string
+        userId:
+          type: string
+        fileType:
+          type: string
+          enum: [report, prescription]
+        filename:
+          type: string
+        title:
+          type: string
+        ocrSummary:
+          type: string
+        storageKey:
+          type: string
+        uploadedAt:
+          type: string
+          format: date-time
+      required: [id, userId, fileType, filename, uploadedAt]
+
+    DailyRecommendation:
+      type: object
+      properties:
+        id:
+          type: string
+        userId:
+          type: string
+        date:
+          type: string
+          format: date
+        healthScore:
+          type: integer
+          minimum: 0
+          maximum: 100
+        greeting:
+          type: string
+        fruitSuggestion:
+          type: string
+        waterGoalLiters:
+          type: number
+        sleepTargetHours:
+          type: number
+        exerciseSuggestion:
+          type: string
+        personalizedTip:
+          type: string
+        dietPlan:
+          type: array
+          items:
+            type: object
+            properties:
+              food:
+                type: string
+              timing:
+                type: string
+              benefit:
+                type: string
+              imagePrompt:
+                type: string
+            required: [food, timing, benefit, imagePrompt]
+        warnings:
+          type: array
+          items:
+            type: string
+        createdAt:
+          type: string
+          format: date-time
+        cached:
+          type: boolean
+        creditCost:
+          type: object
+          properties:
+            recommendation:
+              type: integer
+            aiTip:
+              type: integer
+            total:
+              type: integer
+          required: [recommendation, aiTip, total]
+      required: [id, userId, date, healthScore, greeting, fruitSuggestion, waterGoalLiters, sleepTargetHours, exerciseSuggestion, personalizedTip, dietPlan, warnings, createdAt, cached, creditCost]
+
+    CreditsResponse:
+      type: object
+      properties:
+        used:
+          type: integer
+        limit:
+          type: integer
+        remaining:
+          type: integer
+        resetDate:
+          type: string
+          format: date-time
+      required: [used, limit, remaining, resetDate]

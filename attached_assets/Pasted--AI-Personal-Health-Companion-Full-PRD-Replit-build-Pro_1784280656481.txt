@@ -1,0 +1,182 @@
+# AI Personal Health Companion — Full PRD (Replit build)
+
+Production-grade spec. No dummy/mock data anywhere in the shipped product — every screen reads from real user-entered or uploaded data, and every AI call goes to a live Cohere endpoint. Placeholder states must be genuine empty states ("No reports yet — upload one"), not fake sample rows.
+
+---
+
+## 1. Vision
+
+An AI health companion that sits **before** the doctor visit, not instead of it. It remembers a user's health profile, watches symptoms and medication adherence, gives personalized daily guidance, and tells the user clearly when to stop self-managing and see a physician. It is explicitly **not** a diagnostic tool.
+
+---
+
+## 2. Onboarding (max 5 inputs, ship this first)
+
+A single short form, collected once, editable later from Settings:
+
+1. **Age** (number)
+2. **Gender** (radio: male / female / other)
+3. **Weight in kg** (number)
+4. **Existing conditions** (checkbox group: blood pressure, sugar/diabetes, thyroid, none — multi-select, drives personalization rules)
+5. **Ongoing medications + short medical history** (two text fields bundled as one onboarding step: free-text medication list, free-text history/allergies/surgeries)
+
+Store as a `medical_profile` row keyed to `user_id`. This is the minimum viable profile — everything else (BP readings, sugar logs, symptom entries) is added over time through use, not asked upfront.
+
+---
+
+## 3. Core modules
+
+### 3.1 Health memory
+Structured store of: conditions, medications, allergies, surgeries, family history, and a running timeline of logged events (symptom entries, BP/sugar readings, uploaded reports). This is the context every AI call is grounded in — never call the AI without passing the user's current profile summary.
+
+### 3.2 Medication reminders
+- User adds a medicine (name, dose, condition it's for, time(s) per day, with/without food note).
+- Common presets for the conditions selected at onboarding (e.g. selecting "thyroid" surfaces a Thyroxine template) to speed up entry — user still confirms dose and time themselves; nothing is auto-filled with fabricated values.
+- Push/local notification at the scheduled time. Mark taken / snoozed / missed.
+- 3 missed doses in a row for a chronic condition (BP, sugar, thyroid) → flag into the daily risk score and surface a nudge; don't silently ignore it.
+
+### 3.3 Digital health file (Reports + Prescriptions tabs)
+- **Reports tab**: user uploads lab reports (PDF/image). Store the file, extract a short text summary via OCR for search, show upload date and a doctor-entered or auto-detected title.
+- **Prescriptions tab**: same pattern for prescription uploads. Optionally parse medicine name/dose/frequency from the image to pre-fill a medication reminder — user must confirm before it goes live, since OCR on handwriting is unreliable.
+- Files stored in object storage (see §6), never in the database itself.
+
+### 3.4 Symptom analysis & risk score
+User logs symptoms (text or a short structured checklist). The model combines symptoms + profile (age, conditions, recent readings) into:
+- A 0–100 risk score
+- A plain-language reason
+- A recommendation tier: home care / monitor 24–48h / see a doctor within 24h / emergency
+
+This is a **rules-plus-AI hybrid**, not pure model output — see §5.3.
+
+### 3.5 Chronic disease personalization
+When a user with a flagged condition logs a reading (e.g. BP 160/105), the recommendation engine layers condition-specific do/don't food and lifestyle guidance on top of the generic advice, and reminds them to recheck / contact their doctor if the reading stays elevated.
+
+### 3.6 Daily recommendations
+One AI-generated card per day: health score, one fruit/veg/protein suggestion, water goal, sleep target, exercise suggestion, tied to the user's actual profile and recent logs — never a generic template shown to everyone.
+
+### 3.7 Emergency detection (safety layer, cross-cutting)
+A keyword + classifier check runs on every symptom entry, independent of the risk score above. Red flags (chest pain, breathing difficulty, stroke signs, loss of consciousness, suicidal ideation, severe allergic reaction) immediately show an emergency banner and **skip** the normal AI recommendation flow — this path never waits on an API round trip if it can be caught by local rule-matching first.
+
+---
+
+## 4. What this app is not
+
+- Not a diagnostic device. Every AI response carries a persistent, non-dismissible-on-first-use disclaimer: "This is not a medical diagnosis. For any doubt, please consult a doctor."
+- Not a prescribing tool. It never generates a dosage recommendation for a medicine the user isn't already taking.
+- Not a replacement for emergency services — the emergency banner always includes a "Call emergency services" action, not just text.
+
+---
+
+## 5. AI integration — Cohere
+
+### 5.1 Where Cohere is used
+| Feature | Cohere endpoint | Notes |
+|---|---|---|
+| Symptom analysis reasoning | Chat (`command-a` or current default chat model) | Structured JSON output only |
+| Daily recommendation generation | Chat | Structured JSON output only |
+| Report/prescription text summarization | Chat | Runs on OCR-extracted text, not the raw image |
+| Report search ("show me my thyroid reports") | Embed | Embed report summaries + query, cosine similarity |
+
+Use the current model names from Cohere's docs at build time — this PRD intentionally doesn't hardcode a model string since Cohere's lineup changes; the Replit build should read the model name from an environment variable (`COHERE_MODEL`) so it can be swapped without a redeploy.
+
+### 5.2 API key handling
+- `COHERE_API_KEY` lives in Replit Secrets, never in client code, never in the repo.
+- All Cohere calls go through your own backend route (`/api/ai/*`) — the frontend never talks to Cohere directly. This is the only way to meter credits and keep the key private.
+
+### 5.3 Prompt structure (symptom analysis example)
+Send a system instruction that pins the model to:
+- Only reason from the symptoms and profile provided — no inventing findings.
+- Respond in strict JSON: `{ risk_score: number, reason: string, tier: "home_care"|"monitor"|"see_doctor_24h"|"emergency", advice: string[] }`.
+- Never include a diagnosis name as a definitive statement — phrase as "commonly associated with," not "you have."
+
+Before sending to Cohere, run the local emergency-keyword check (§3.7). If it trips, don't call the AI at all for that entry — show the emergency banner immediately and log the event.
+
+### 5.4 Credit metering
+Every Cohere call costs the user 1 "AI credit," logged in a `credit_usage` table (`user_id`, `feature`, `tokens_used`, `cost_estimate`, `timestamp`). Reminders, tab navigation, and file uploads themselves are free — only actual model calls consume credits. Enforce the check server-side before the Cohere call is made, not client-side.
+
+---
+
+## 6. Tech stack (Replit-friendly)
+
+- **Frontend**: React (Vite) or Next.js — either works on Replit; Next.js if you want SSR for the marketing/pricing pages.
+- **Backend**: Node.js + Express (or Next.js API routes if you skip a separate backend).
+- **Database**: PostgreSQL via Replit's built-in Postgres or a Neon/Supabase free tier connected through `DATABASE_URL`. Use an ORM (Drizzle or Prisma) — don't hand-write raw SQL for a prod app.
+- **File storage**: Replit Object Storage (or S3-compatible bucket) for uploaded reports/prescriptions. Never store binary files in Postgres.
+- **Auth**: Replit Auth for the fastest path, or a standard email/password + JWT flow if you need portability off Replit later.
+- **Notifications**: Web Push (service worker) for reminders if this stays a web app; move to a real push provider (FCM/APNs) only if you wrap it as a mobile app later.
+- **Payments**: Stripe for Standard/Premium subscriptions and one-off credit top-ups.
+
+---
+
+## 7. Freemium model
+
+| Tier | Price | AI credits | What it covers |
+|---|---|---|---|
+| Free | ₹0 | 100 credits / month | Onboarding, health memory, medication reminders (unlimited — not AI-metered), reports/prescriptions storage, up to 100 AI calls/month (symptom checks + daily recommendations combined) |
+| Standard | Paid, e.g. ₹199/mo (set final price after checking Cohere's per-call cost at your model choice) | 500 credits / month | Everything in Free, higher AI ceiling, priority daily recommendation generation |
+| Premium | Paid, e.g. ₹499/mo | 2,000 credits / month + family profiles | Everything in Standard, multiple family member profiles under one account, report OCR auto-fill for reminders, faster support |
+
+**Credit reset**: monthly, tied to billing cycle start date, not calendar month, to avoid a billing-vs-usage mismatch.
+
+**Overage handling**: when a user hits their monthly cap, symptom analysis and daily recommendations show a clear paywall state ("You've used all your AI credits this month — upgrade or wait until [date]") rather than silently failing or faking a response. Medication reminders, file storage, and viewing past history always keep working — the paywall only blocks new AI calls.
+
+**Cost control**: before shipping, estimate Cohere's per-1K-token price for your chosen model and size the free tier's 100 credits against that, so free users don't quietly cost more than they're worth. Cap max output tokens per call server-side (e.g. 300 tokens) so a single request can't blow the budget.
+
+---
+
+## 8. Data model (core tables)
+
+- `users` (id, email, auth fields, tier, billing_cycle_start)
+- `medical_profile` (user_id, age, gender, weight_kg, conditions[], medications_text, history_text)
+- `medications` (id, user_id, name, dose, condition, time_of_day[], with_food, active)
+- `medication_logs` (id, medication_id, scheduled_time, status: taken/missed/snoozed)
+- `symptom_logs` (id, user_id, input_text, risk_score, tier, ai_reason, created_at)
+- `readings` (id, user_id, type: bp/sugar/weight, value, created_at)
+- `files` (id, user_id, type: report/prescription, storage_url, ocr_summary, uploaded_at)
+- `credit_usage` (id, user_id, feature, tokens_used, created_at)
+- `subscriptions` (user_id, tier, stripe_customer_id, current_period_end)
+
+---
+
+## 9. Key API routes
+
+- `POST /api/onboarding` — save the 5-question profile
+- `POST /api/symptoms` — log symptoms → runs emergency check → calls Cohere if not emergency → deducts 1 credit → returns risk score
+- `GET /api/daily-recommendation` — returns today's card, generates + caches once per day per user (don't regenerate on every page load — that burns credits for nothing)
+- `POST /api/medications`, `PATCH /api/medications/:id/log` — CRUD + adherence logging
+- `POST /api/files` — upload to object storage, kick off OCR, return summary
+- `GET /api/credits` — remaining credits this cycle, for the UI meter
+- `POST /api/billing/checkout`, `POST /api/billing/webhook` — Stripe integration
+
+---
+
+## 10. Non-functional requirements
+
+- **No dummy data in production**: every list view must query real data and show a genuine empty state when there's none. QA against an empty account before launch.
+- **PII handling**: health data is sensitive — encrypt files at rest in object storage, restrict database access, don't log full symptom text or profile data in application logs.
+- **Rate limiting**: per-user rate limit on `/api/symptoms` and `/api/daily-recommendation` independent of the credit system, to prevent abuse/scripting.
+- **Graceful AI failure**: if Cohere is down or errors, don't refund a fake result — show "Couldn't reach the health assistant right now, try again shortly" and don't deduct a credit for a failed call.
+- **Auditability**: every AI response and its input profile snapshot should be retrievable for a given `symptom_logs` row, in case a user disputes advice given.
+
+---
+
+## 11. Build order (phased for Replit)
+
+1. Auth + onboarding form + medical_profile storage
+2. Medication CRUD + reminders (no AI yet — get the free core solid first)
+3. File upload (reports/prescriptions tabs) + storage wiring
+4. Cohere integration behind `/api/ai/*` with credit metering and emergency pre-check
+5. Symptom analysis + risk score UI
+6. Daily recommendation card (cached per day)
+7. Stripe billing + tier gating
+8. Chronic disease personalization layer on top of readings + profile
+9. Polish: empty states, error states, notification delivery, QA pass with zero seeded data
+
+---
+
+## 12. Open decisions to confirm before building
+
+- Final Cohere model name and per-token pricing (check Cohere's current docs — pricing and model names change).
+- Final price points for Standard/Premium — should be set against actual Cohere cost per average user, not guessed.
+- Whether reminders need push notifications on day one or can start as in-app only.
+- Whether family profiles (Premium) share one Cohere credit pool or get separate pools per member.

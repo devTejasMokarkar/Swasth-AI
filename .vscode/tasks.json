@@ -1,0 +1,47 @@
+{
+  "version": "2.0.0",
+  "tasks": [
+    {
+      "label": "Start Mobile Dev",
+      "type": "shell",
+      "command": "pnpm --filter @workspace/mobile dev",
+      "problemMatcher": [],
+      "isBackground": true,
+      "presentation": {
+        "panel": "dedicated",
+        "showReuseMessage": false,
+        "clear": true
+      }
+    },
+    {
+      "label": "Start API Server",
+      "type": "shell",
+      "command": "cd artifacts/api-server && pnpm run build && (set -a; source ../../.env; set +a; NODE_ENV=development node --enable-source-maps ./dist/index.mjs)",
+      "problemMatcher": [],
+      "isBackground": true,
+      "presentation": {
+        "panel": "dedicated",
+        "showReuseMessage": false,
+        "clear": true
+      }
+    },
+    {
+      "label": "Manage Dev Servers",
+      "type": "shell",
+      "command": "./scripts/manage-dev.sh",
+      "problemMatcher": [],
+      "presentation": {
+        "panel": "shared",
+        "showReuseMessage": false,
+        "clear": true
+      }
+    }
+  ],
+  "compounds": [
+    {
+      "label": "Run Mobile + API Dev",
+      "dependsOn": ["Start Mobile Dev", "Start API Server"],
+      "dependsOrder": "sequence"
+    }
+  ]
+}
