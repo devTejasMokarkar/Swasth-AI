@@ -109,7 +109,7 @@ export function DailyCard({ recommendation: rec }: DailyCardProps) {
             </Text>
           </View>
           <View style={styles.dietPill}>
-            <Feather name="sparkles" size={12} color="#fff" />
+            <Feather name="star" size={12} color="#fff" />
             <Text style={styles.dietPillText}>AI diet plan</Text>
           </View>
         </View>
@@ -244,19 +244,6 @@ const styles = StyleSheet.create({
     color: '#fff',
     fontSize: 15,
     fontFamily: 'Inter_600SemiBold',
-  },
-  dietTiming: {
-    color: '#fff',
-    fontSize: 12,
-    fontFamily: 'Inter_400Regular',
-    opacity: 0.9,
-  },
-  dietBenefit: {
-    color: '#fff',
-    fontSize: 12,
-    fontFamily: 'Inter_400Regular',
-    lineHeight: 17,
-    opacity: 0.9,
   },
   dietTiming: {
     color: '#fff',

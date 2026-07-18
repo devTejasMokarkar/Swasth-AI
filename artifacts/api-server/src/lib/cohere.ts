@@ -215,7 +215,8 @@ export async function generateDailyRecommendation(
     gender: string;
     weightKg: number;
     conditions: string[];
-    medicationsText: string;
+    medicationsText?: string;
+    historyText?: string;
   } | null,
   recentContext: string,
 ): Promise<{ result: DailyRecommendationResult; tokensUsed: number }> {

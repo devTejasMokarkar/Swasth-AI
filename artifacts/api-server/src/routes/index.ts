@@ -7,6 +7,7 @@ import readingsRouter from "./readings";
 import filesRouter from "./files";
 import creditsRouter from "./credits";
 import recommendationsRouter from "./recommendations";
+import chatRouter from "./chat";
 
 const router: IRouter = Router();
 
@@ -18,5 +19,6 @@ router.use(readingsRouter);
 router.use(filesRouter);
 router.use(creditsRouter);
 router.use(recommendationsRouter);
+router.use(chatRouter);
 
 export default router;

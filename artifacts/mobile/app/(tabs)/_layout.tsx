@@ -15,13 +15,9 @@ function NativeTabLayout() {
         <Icon sf={{ default: 'house', selected: 'house.fill' }} />
         <Label>Home</Label>
       </NativeTabs.Trigger>
-      <NativeTabs.Trigger name="medications">
-        <Icon sf={{ default: 'pill', selected: 'pill.fill' }} />
-        <Label>Medications</Label>
-      </NativeTabs.Trigger>
-      <NativeTabs.Trigger name="symptoms">
-        <Icon sf={{ default: 'waveform.path.ecg', selected: 'waveform.path.ecg' }} />
-        <Label>Symptoms</Label>
+      <NativeTabs.Trigger name="care">
+        <Icon sf={{ default: 'heart', selected: 'heart.fill' }} />
+        <Label>Care</Label>
       </NativeTabs.Trigger>
       <NativeTabs.Trigger name="files">
         <Icon sf={{ default: 'folder', selected: 'folder.fill' }} />
@@ -81,26 +77,14 @@ function ClassicTabLayout() {
         }}
       />
       <Tabs.Screen
-        name="medications"
+        name="care"
         options={{
-          title: 'Medications',
+          title: 'Care',
           tabBarIcon: ({ color }) =>
             isIOS ? (
-              <SymbolView name="pill" tintColor={color} size={22} />
+              <SymbolView name="heart.fill" tintColor={color} size={22} />
             ) : (
-              <Feather name="plus-circle" size={22} color={color} />
-            ),
-        }}
-      />
-      <Tabs.Screen
-        name="symptoms"
-        options={{
-          title: 'Symptoms',
-          tabBarIcon: ({ color }) =>
-            isIOS ? (
-              <SymbolView name="waveform.path.ecg" tintColor={color} size={22} />
-            ) : (
-              <Feather name="activity" size={22} color={color} />
+              <Feather name="heart" size={22} color={color} />
             ),
         }}
       />

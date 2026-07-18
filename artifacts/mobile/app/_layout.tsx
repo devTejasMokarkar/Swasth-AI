@@ -76,6 +76,16 @@ function RootLayoutNav() {
           headerTintColor: colors.primary,
         }}
       />
+      <Stack.Screen
+        name="chat"
+        options={{
+          headerShown: true,
+          title: 'Swasthai',
+          presentation: 'modal',
+          headerStyle: { backgroundColor: colors.background },
+          headerTintColor: colors.primary,
+        }}
+      />
       <Stack.Screen name="logout" options={{ headerShown: false }} />
     </Stack>
   );

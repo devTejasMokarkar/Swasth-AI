@@ -1,0 +1,139 @@
+# Mobile App and Apple Health Integration — PRD
+
+Companion to the main product PRD and UI Design PRD. Covers the native mobile build needed specifically for Apple Health (HealthKit) sync — this is a separate build target from the Replit web app, sharing the same backend API.
+
+---
+
+## 1. Why this is a separate PRD
+
+The core product PRD assumes a Replit-hosted web app (React/Next.js + Node backend). HealthKit cannot be accessed from a web app or from Replit's server — it's a native iOS API. Getting Apple Health data into the health companion requires:
+
+- A real Expo/React Native mobile app (not just a website wrapped in a webview)
+- A custom dev client, not Expo Go, since HealthKit needs native modules
+- Builds produced through EAS Build, not through Replit's runtime
+
+The **backend stays the same** — Postgres, the `/api/*` routes, Cohere integration, credit metering. This PRD only covers the mobile client and its HealthKit sync layer, which talks to that same backend.
+
+---
+
+## 2. Scope
+
+**In scope**: iOS app (Expo/React Native), Apple HealthKit read/write, permission flow, syncing HealthKit data into the existing `readings` and health-memory tables.
+
+**Out of scope for v1**: Android/Health Connect (different API, different permission model — worth a follow-up PRD once iOS is stable), Apple Watch companion app, background health data delivery (real-time sync while the app is closed).
+
+---
+
+## 3. Constraints to design around
+
+| Constraint | Implication |
+|---|---|
+| HealthKit is iOS-only | Android users get manual entry only, in v1 |
+| Not available in Expo Go | Development requires `expo-dev-client` + `npx expo prebuild`; testers need a custom build, not the App Store Expo Go app |
+| Most data types don't work in the simulator | QA must happen on physical iPhones |
+| iOS never reports read-permission status | The app can never show "permission granted" for read access — only for write access. UI must be designed around this blind spot (see §6) |
+| Builds require EAS, not Replit | `eas build --platform ios` produces the binary; Replit continues to serve the API only |
+
+---
+
+## 4. Library choice
+
+Two viable options as of mid-2026:
+
+- **`apple-health`** (Evan Bacon) — built on Expo's Modules API, ships React hooks (`usePermissions`, `useHealthKitQuery`, `useHealthKitStatistics`), no manual Xcode/AppDelegate edits needed. Recommended default for a fresh Expo project.
+- **`react-native-health`** — longer-established, wider community usage, also has an Expo config plugin, callback-based API rather than hooks.
+
+Recommendation: start with `apple-health` for a cleaner Expo-native developer experience; fall back to `react-native-health` only if a specific data type or feature isn't yet supported by the newer library.
+
+---
+
+## 5. Data types requested
+
+| Type | Direction | Used for |
+|---|---|---|
+| Step count | Read | Feeds the "move" tile on the daily health card |
+| Sleep analysis | Read | Auto-fills the sleep tile instead of manual entry |
+| Heart rate | Read | Optional context for symptom analysis (e.g. elevated resting HR alongside reported symptoms) |
+| Dietary water | Write | So water logged in-app also appears in the user's native Health app, keeping one consistent record |
+
+Do not request broader categories than these four for v1 — blood pressure, blood glucose, and clinical records stay as manual/OCR entry (per the core PRD) since HealthKit access to those categories triggers stricter App Store review and most users don't have a connected BP cuff or glucometer feeding Health automatically.
+
+---
+
+## 6. Permission flow design
+
+- Permission requests are **user-initiated only** — a "Connect Apple Health" action in onboarding (as an optional, skippable step) and again in Settings. Never request on app launch without a tap.
+- Read and write permissions are requested together in one system prompt (iOS batches them), but the app's own copy explains both: "We'll read your steps, sleep, and heart rate, and save water you log here back to Health."
+- Because iOS hides read-permission status, **do not build a permission indicator that claims read access is confirmed**. Instead:
+  - Attempt a query right after the permission prompt closes.
+  - If data comes back (even zero values with valid structure), treat sync as active.
+  - If the query errors, show "Couldn't sync with Apple Health — check the Health app's sharing settings" rather than a false "denied" state, since the two are indistinguishable from the API alone.
+- Users can always fall back to manual entry for anything HealthKit isn't syncing — the manual flows from the core PRD are never removed, only supplemented.
+
+---
+
+## 7. Build and config plugin
+
+**`app.json` plugin block:**
+```json
+{
+  "expo": {
+    "plugins": [
+      ["apple-health", {
+        "healthSharePermission": "Allow HealthCompanion to read your steps, sleep, and heart rate to personalize your daily recommendations",
+        "healthUpdatePermission": "Allow HealthCompanion to save water intake you log in the app"
+      }]
+    ]
+  }
+}
+```
+
+**Requesting permissions:**
+```js
+import { usePermissions } from "apple-health/hooks";
+
+const [status, requestPermission] = usePermissions({
+  read: ["stepCount", "heartRate", "sleepAnalysis"],
+  write: ["dietaryWater"],
+});
+// Trigger requestPermission() from a "Connect Apple Health" button — never on launch
+```
+
+**Build commands:**
+```bash
+npx expo install expo-dev-client
+npx expo prebuild
+npx expo run:ios          # local dev on a physical device
+eas build --platform ios  # for TestFlight / release builds
+```
+
+---
+
+## 8. Syncing into the existing schema
+
+Reuse the `readings` table from the core PRD rather than creating a parallel HealthKit-specific table:
+
+- `readings` gets a new `source` column: `manual` | `healthkit`, so the UI can show a small "synced from Apple Health" tag without changing the table shape.
+- A background sync job (triggered on app foreground, not a true background task in v1) pulls the last 24 hours of steps/sleep/heart rate and writes new `readings` rows, deduplicated by timestamp + type.
+- Water logged manually in-app writes to HealthKit immediately (write path) and to the local `readings` table — both paths point at the same value, avoiding drift.
+
+---
+
+## 9. Build order
+
+1. Add `expo-dev-client`, run `prebuild`, confirm the app still runs on a physical device with the dev client
+2. Install `apple-health`, add the config plugin, rebuild
+3. Build the "Connect Apple Health" UI in onboarding and Settings, wired to `usePermissions`
+4. Implement the read sync for steps, sleep, heart rate into `readings`
+5. Implement the write path for water logging
+6. Handle the invisible-read-permission UX (§6) — test explicitly by denying permission on a device and confirming the app degrades gracefully to manual entry
+7. `eas build` for internal TestFlight testing
+8. QA pass on at least two physical iPhones with different iOS versions before wider release
+
+---
+
+## 10. Open decisions
+
+- Whether Android/Health Connect is a near-term follow-up or a later phase — recommend deferring until iOS sync is stable and used by real users.
+- Whether heart rate data feeds directly into the AI symptom-analysis prompt context, or stays a display-only metric for v1 — the core PRD's context payload (§5.3 of the main PRD) would need a `recent_heart_rate` field added if so.
+- Whether background delivery (syncing while the app is closed) is worth the added complexity for v1, or whether foreground-triggered sync is good enough at launch.

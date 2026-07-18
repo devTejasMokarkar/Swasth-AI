@@ -9,6 +9,7 @@ import {
   Platform,
   RefreshControl,
 } from 'react-native';
+
 import { useRouter } from 'expo-router';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { Feather } from '@expo/vector-icons';
@@ -231,7 +232,7 @@ export default function HomeScreen() {
           {activeMeds.length > 3 && (
             <TouchableOpacity
               style={[styles.viewAllBtn, { borderColor: colors.border }]}
-              onPress={() => router.push('/(tabs)/medications')}
+              onPress={() => router.push('/(tabs)/care')}
               activeOpacity={0.7}
             >
               <Text style={[styles.viewAllText, { color: colors.primary }]}>
@@ -240,6 +241,7 @@ export default function HomeScreen() {
               <Feather name="chevron-right" size={14} color={colors.primary} />
             </TouchableOpacity>
           )}
+
         </View>
 
         {/* Quick Actions */}
@@ -248,7 +250,7 @@ export default function HomeScreen() {
           <View style={styles.quickActions}>
             <TouchableOpacity
               style={[styles.quickAction, { backgroundColor: colors.card, borderColor: colors.border }]}
-              onPress={() => router.push('/(tabs)/symptoms')}
+              onPress={() => router.push('/(tabs)/care')}
               activeOpacity={0.8}
             >
               <View style={[styles.quickActionIcon, { backgroundColor: colors.primaryMuted }]}>
@@ -275,6 +277,16 @@ export default function HomeScreen() {
                 <Feather name="upload" size={20} color={colors.warning} />
               </View>
               <Text style={[styles.quickActionText, { color: colors.foreground }]}>Upload File</Text>
+            </TouchableOpacity>
+            <TouchableOpacity
+              style={[styles.quickAction, { backgroundColor: colors.card, borderColor: colors.border }]}
+              onPress={() => router.push('/chat')}
+              activeOpacity={0.8}
+            >
+              <View style={[styles.quickActionIcon, { backgroundColor: '#E0F2FE' }]}>
+                <Feather name="message-circle" size={20} color={colors.info} />
+              </View>
+              <Text style={[styles.quickActionText, { color: colors.foreground }]}>Chat with Swasthai</Text>
             </TouchableOpacity>
           </View>
         </View>
