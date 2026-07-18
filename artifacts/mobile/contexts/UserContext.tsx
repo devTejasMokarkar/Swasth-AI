@@ -62,7 +62,15 @@ export function UserProvider({ children }: { children: ReactNode }) {
         setUserId(id);
 
         // Set auth token getter — backend reads this as user ID
-        setAuthTokenGetter(() => id!);
+        // Use AsyncStorage lookup at call time to avoid stale/empty closure values.
+        setAuthTokenGetter(async () => {
+          try {
+            const current = await AsyncStorage.getItem(USER_ID_KEY);
+            return current;
+          } catch (err) {
+            return id;
+          }
+        });
 
         // Check onboarding status
         const onboarded = await AsyncStorage.getItem(ONBOARDING_KEY);

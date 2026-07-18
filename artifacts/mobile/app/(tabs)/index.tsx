@@ -15,6 +15,7 @@ import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { Feather } from '@expo/vector-icons';
 import { useColors } from '@/hooks/useColors';
 import { DailyCard } from '@/components/DailyCard';
+import generateDietPlan, { renderPlanText } from '@/lib/dietPlanner';
 import { MedicationCard } from '@/components/MedicationCard';
 import {
   useGetDailyRecommendation,
@@ -94,6 +95,42 @@ export default function HomeScreen() {
     return 'Weight';
   };
 
+  // If API didn't include a dietPlan, derive one locally from profile and time so UI updates immediately.
+  const derivedDietPlan = React.useMemo(() => {
+    try {
+      const plan = generateDietPlan(
+        {
+          weightKg: profileData?.weightKg ?? profileData?.weightKg ?? undefined,
+          conditions: profileData?.conditions ?? undefined,
+          preferences: profileData?.preferences ?? undefined,
+        },
+        new Date(),
+      );
+
+      // Convert to the simple array shape DailyCard expects: [{ food, timing, benefit }, ...]
+      const meals = plan.meals as Record<string, any>;
+      const items: Array<{ food: string; timing: string; benefit: string }> = [];
+      if (meals.breakfast) {
+        items.push({ food: meals.breakfast.items[0] ?? meals.breakfast.title, timing: 'morning', benefit: meals.breakfast.note ?? '' });
+      }
+      if (meals.lunch) {
+        items.push({ food: meals.lunch.items[0] ?? meals.lunch.title, timing: 'midday', benefit: meals.lunch.note ?? '' });
+      }
+      if (meals.dinner) {
+        items.push({ food: meals.dinner.items[0] ?? meals.dinner.title, timing: 'dinner', benefit: meals.dinner.note ?? '' });
+      }
+
+      // Ensure three items so the card layout stays consistent — fill with sensible fallbacks
+      while (items.length < 3) {
+        items.push({ food: 'Fresh fruit', timing: 'midday', benefit: 'Light and nutritious' });
+      }
+
+      return items;
+    } catch (err) {
+      return [];
+    }
+  }, [profileData]);
+
   return (
     <View style={[styles.container, { backgroundColor: colors.background }]}>
       <ScrollView
@@ -153,7 +190,10 @@ export default function HomeScreen() {
             </TouchableOpacity>
           </View>
         ) : recData ? (
-          <DailyCard recommendation={recData} />
+          <DailyCard recommendation={
+            // prefer API dietPlan when available, otherwise inject derivedDietPlan
+            (recData.dietPlan && recData.dietPlan.length > 0) ? recData : { ...recData, dietPlan: derivedDietPlan }
+          } />
         ) : null}
 
         {/* Recent Readings */}

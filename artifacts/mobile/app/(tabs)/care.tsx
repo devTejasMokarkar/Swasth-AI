@@ -3,7 +3,7 @@ import {
   View,
   Text,
   StyleSheet,
-  FlatList,
+  ScrollView,
   TouchableOpacity,
   ActivityIndicator,
   Alert,
@@ -143,27 +143,69 @@ export default function CareScreen() {
   );
 
   return (
-    <View style={[styles.container, { backgroundColor: colors.background }]}> 
-      <View style={[styles.header, { paddingTop: topPad + 16, backgroundColor: colors.background, borderBottomColor: colors.border }]}> 
+    <View style={[styles.container, { backgroundColor: colors.background }]}>
+      <View
+        style={[
+          styles.header,
+          {
+            paddingTop: topPad + 16,
+            backgroundColor: colors.background,
+            borderBottomColor: colors.border,
+          },
+        ]}
+      >
         <Text style={[styles.title, { color: colors.foreground }]}>Care</Text>
       </View>
 
-      <View style={styles.content}>
+      <ScrollView
+        contentContainerStyle={styles.content}
+        showsVerticalScrollIndicator={false}
+        keyboardShouldPersistTaps="handled"
+      >
         <Text style={[styles.sectionTitle, { color: colors.foreground }]}>Medications</Text>
         {isLoading ? (
           <ActivityIndicator color={colors.primary} />
         ) : error ? (
-          <EmptyState icon="alert-circle" title="Couldn't load medications" description="Check your connection and try again." onAction={() => refetch()} actionLabel="Retry" />
+          <EmptyState
+            icon="alert-circle"
+            title="Couldn't load medications"
+            description="Check your connection and try again."
+            onAction={() => refetch()}
+            actionLabel="Retry"
+          />
         ) : meds.length === 0 ? (
-          <EmptyState icon="plus-circle" title="No medications yet" description="Add your medications to track adherence and get reminders." actionLabel="Add Medication" onAction={() => {}} />
+          <EmptyState
+            icon="plus-circle"
+            title="No medications yet"
+            description="Add your medications to track adherence and get reminders."
+            actionLabel="Add Medication"
+            onAction={() => {}}
+          />
         ) : (
-          <FlatList data={meds} renderItem={renderMed} keyExtractor={(i) => i.id} />
+          <View style={styles.listBlock}>
+            {meds.map((item) => (
+              <MedicationCard
+                key={item.id}
+                medication={item}
+                onTaken={() => handleLog(item.id, 'taken')}
+                onSnoozed={() => handleLog(item.id, 'snoozed')}
+                onMissed={() => handleLog(item.id, 'missed')}
+                onEdit={() =>
+                  Alert.alert(item.name, `${item.dose} · ${item.timesPerDay}x/day`, [
+                    { text: 'Cancel', style: 'cancel' },
+                    { text: item.active ? 'Pause' : 'Reactivate', onPress: () => handleToggleActive(item) },
+                    { text: 'Delete', style: 'destructive', onPress: () => handleDelete(item) },
+                  ])
+                }
+              />
+            ))}
+          </View>
         )}
 
         <View style={styles.divider} />
 
         <Text style={[styles.sectionTitle, { color: colors.foreground }]}>Symptom Checker</Text>
-        <View style={[styles.inputCard, { backgroundColor: colors.card, borderColor: colors.border }]}> 
+        <View style={[styles.inputCard, { backgroundColor: colors.card, borderColor: colors.border }]}>
           <TextInput
             style={[styles.textInput, { color: colors.foreground }]}
             placeholder="Describe your symptoms in detail…"
@@ -177,24 +219,57 @@ export default function CareScreen() {
 
           <View style={styles.chipsRow}>
             {COMMON_SYMPTOMS.map((s) => (
-              <TouchableOpacity key={s} style={[styles.chip, { backgroundColor: colors.muted, borderColor: colors.border }]} onPress={() => handleChip(s)} activeOpacity={0.7}>
+              <TouchableOpacity
+                key={s}
+                style={[styles.chip, { backgroundColor: colors.muted, borderColor: colors.border }]}
+                onPress={() => handleChip(s)}
+                activeOpacity={0.7}
+              >
                 <Text style={[styles.chipText, { color: colors.foreground }]}>{s}</Text>
               </TouchableOpacity>
             ))}
           </View>
 
-          <TouchableOpacity style={[styles.analyzeBtn, { backgroundColor: input.trim() ? colors.primary : colors.muted }]} onPress={handleAnalyze} disabled={analyzeMutation.isPending || !input.trim()} activeOpacity={0.8}>
-            {analyzeMutation.isPending ? <ActivityIndicator color="#fff" /> : <><Feather name="search" size={16} color={input.trim() ? '#fff' : colors.mutedForeground} /><Text style={[styles.analyzeBtnText, { color: input.trim() ? '#fff' : colors.mutedForeground }]}>Analyze</Text></>}
+          <TouchableOpacity
+            style={[
+              styles.analyzeBtn,
+              { backgroundColor: input.trim() ? colors.primary : colors.muted },
+            ]}
+            onPress={handleAnalyze}
+            disabled={analyzeMutation.isPending || !input.trim()}
+            activeOpacity={0.8}
+          >
+            {analyzeMutation.isPending ? (
+              <ActivityIndicator color="#fff" />
+            ) : (
+              <>
+                <Feather
+                  name="search"
+                  size={16}
+                  color={input.trim() ? '#fff' : colors.mutedForeground}
+                />
+                <Text
+                  style={[
+                    styles.analyzeBtnText,
+                    { color: input.trim() ? '#fff' : colors.mutedForeground },
+                  ]}
+                >
+                  Analyze
+                </Text>
+              </>
+            )}
           </TouchableOpacity>
 
           {lastResult && !lastResult.isEmergency && (
-            <View style={[styles.resultCard, { backgroundColor: colors.card, borderColor: colors.border }]}> 
+            <View style={[styles.resultCard, { backgroundColor: colors.card, borderColor: colors.border }]}>
               <Text style={[styles.resultLabel, { color: colors.mutedForeground }]}>Analysis Result</Text>
-              <Text style={[styles.resultReason, { color: colors.foreground }]}>{lastResult.aiReason}</Text>
+              <Text style={[styles.resultReason, { color: colors.foreground }]}>
+                {lastResult.aiReason}
+              </Text>
             </View>
           )}
         </View>
-      </View>
+      </ScrollView>
     </View>
   );
 }
@@ -203,9 +278,10 @@ const styles = StyleSheet.create({
   container: { flex: 1 },
   header: { borderBottomWidth: 1, paddingHorizontal: 16, paddingBottom: 12 },
   title: { fontSize: 24, fontFamily: 'Inter_700Bold' },
-  content: { padding: 16, gap: 12 },
+  content: { padding: 16, gap: 12, paddingBottom: 120 },
   sectionTitle: { fontSize: 17, fontFamily: 'Inter_600SemiBold', marginBottom: 8 },
   divider: { height: 1, marginVertical: 12 },
+  listBlock: { gap: 12 },
   inputCard: { borderRadius: 12, borderWidth: 1, padding: 12 },
   textInput: { minHeight: 64, fontSize: 14, fontFamily: 'Inter_400Regular' },
   chipsRow: { flexDirection: 'row', gap: 8, marginTop: 8, flexWrap: 'wrap' as any },

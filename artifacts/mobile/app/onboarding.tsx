@@ -163,6 +163,7 @@ export default function OnboardingScreen() {
   };
 
   const handleNext = () => {
+    console.debug('handleNext called, current step=', step);
     if (step === 1 && !validateStep1()) return;
     if (step === 2 && !validateStep2()) return;
     Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
@@ -170,6 +171,7 @@ export default function OnboardingScreen() {
   };
 
   const handleSubmit = async () => {
+    console.debug('handleSubmit called — submitting profile', { name, dobYear, dobMonth, dobDay, gender, weight, conditions });
     try {
       const ageFromDob = calculateAgeFromDob(dobYear, dobMonth, dobDay);
       await saveMutation.mutateAsync({
@@ -183,7 +185,16 @@ export default function OnboardingScreen() {
           historyText,
         },
       });
+      console.debug('saveMutation completed successfully');
       Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success);
+      // Mark user as onboarded so RootLayoutNav won't redirect back
+      try {
+        setOnboarded(true);
+      } catch (err) {
+        // swallow — best-effort
+        // eslint-disable-next-line no-console
+        console.warn('setOnboarded failed', err);
+      }
       router.replace('/starter-pack');
     } catch (err: any) {
       const message =
