@@ -1,5 +1,27 @@
-pnpm --filter @workspace/mobile dev
+# Health Companion
 
-cd artifacts/api-server && pnpm run build && (set -a; source ../../.env; set +a; NODE_ENV=development node --enable-source-maps ./dist/index.mjs)
+## Setup
 
-cd /home/ptspl03/Downloads/Health-Companion && export NVM_DIR="$HOME/.nvm" && . "$NVM_DIR/nvm.sh" && nvm use 20.20.2 && pnpm --filter @workspace/mobile dev
+```bash
+cd /home/ptspl03/Downloads/Health-Companion
+pnpm install
+```
+
+## Run the mobile app
+
+```bash
+pnpm --filter ./artifacts/mobile dev
+```
+
+## Run the API server
+
+```bash
+pnpm --filter ./artifacts/api-server dev
+```
+
+## Notes
+
+- Use `pnpm install` from the repo root.
+- The mobile app lives in `artifacts/mobile`.
+- The backend API server lives in `artifacts/api-server`.
+- The root workspace does not have a top-level `dev` command, so run package scripts from the package folders.

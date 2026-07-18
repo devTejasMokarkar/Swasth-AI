@@ -32,6 +32,12 @@ function getGreeting() {
   return 'Good evening';
 }
 
+function getDisplayName(name?: string | null) {
+  const cleaned = name?.trim() ?? '';
+  if (cleaned.length < 2) return '';
+  return cleaned.replace(/\s+/g, ' ');
+}
+
 export default function HomeScreen() {
   const colors = useColors();
   const insets = useSafeAreaInsets();
@@ -49,6 +55,7 @@ export default function HomeScreen() {
 
   const { data: readingsData, refetch: refetchReadings } = useGetReadings();
   const { data: profileData } = useGetProfile();
+  const displayName = getDisplayName(profileData?.name);
 
   const logMutation = useLogMedication();
 
@@ -107,7 +114,7 @@ export default function HomeScreen() {
         <View style={styles.header}>
           <View>
             <Text style={[styles.greeting, { color: colors.mutedForeground }]}>
-              {getGreeting()}{profileData?.name ? ` ${profileData.name}` : ''}
+              {getGreeting()}{displayName ? ` ${displayName}` : ''}
             </Text>
             <Text style={[styles.title, { color: colors.foreground }]}>Health Overview</Text>
           </View>

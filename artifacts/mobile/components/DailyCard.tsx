@@ -1,6 +1,6 @@
 import React from 'react';
 import { View, Text, StyleSheet } from 'react-native';
-import { Feather, MaterialCommunityIcons } from '@expo/vector-icons';
+import { Feather } from '@expo/vector-icons';
 import { useColors } from '@/hooks/useColors';
 import type { DailyRecommendation } from '@workspace/api-client-react';
 
@@ -30,18 +30,17 @@ function DietItem({
   food,
   timing,
   benefit,
-  imagePrompt,
 }: {
   food: string;
   timing: string;
   benefit: string;
-  imagePrompt: string;
 }) {
   return (
     <View style={styles.dietItem}>
-      <View style={styles.imageFrame}>
-        <MaterialCommunityIcons name="image-filter-hdr" size={18} color="#fff" />
-        <Text style={styles.imagePrompt}>{imagePrompt}</Text>
+      <View style={styles.imageFrame} accessibilityLabel={`${food} visual`}>
+        <Text style={styles.imageBadge}>AI visual</Text>
+        <View style={styles.imageGlow} />
+        <Text style={styles.imageFoodMark}>{food.charAt(0).toUpperCase()}</Text>
       </View>
       <Text style={styles.dietFood}>{food}</Text>
       <Text style={styles.dietTiming}>{timing}</Text>
@@ -64,25 +63,16 @@ export function DailyCard({ recommendation: rec }: DailyCardProps) {
       food: dietPlan[0]?.food ?? 'Fresh fruit',
       timing: dietPlan[0]?.timing ?? 'midday',
       benefit: dietPlan[0]?.benefit ?? 'Supports steady energy',
-      imagePrompt:
-        dietPlan[0]?.imagePrompt ??
-        'A clean AI-generated image of a healthy fresh fruit bowl on a bright kitchen counter',
     },
     {
       food: dietPlan[1]?.food ?? 'Leafy greens',
       timing: dietPlan[1]?.timing ?? 'dinner',
       benefit: dietPlan[1]?.benefit ?? 'Fits a balanced, condition-aware plan',
-      imagePrompt:
-        dietPlan[1]?.imagePrompt ??
-        'A clean AI-generated image of a healthy vegetable dish on a plate',
     },
     {
       food: dietPlan[2]?.food ?? 'Nuts',
       timing: dietPlan[2]?.timing ?? 'morning',
       benefit: dietPlan[2]?.benefit ?? 'Supports satiety and nutrition',
-      imagePrompt:
-        dietPlan[2]?.imagePrompt ??
-        'A clean AI-generated image of a healthy nut snack in a ceramic bowl',
     },
   ];
 
@@ -122,7 +112,6 @@ export function DailyCard({ recommendation: rec }: DailyCardProps) {
             food={item.food}
             timing={item.timing}
             benefit={item.benefit}
-            imagePrompt={item.imagePrompt}
           />
         ))}
       </View>
@@ -234,16 +223,36 @@ const styles = StyleSheet.create({
     minHeight: 86,
     borderRadius: 18,
     padding: 12,
-    gap: 8,
     justifyContent: 'space-between',
     backgroundColor: 'rgba(255,255,255,0.16)',
+    overflow: 'hidden',
   },
-  imagePrompt: {
+  imageBadge: {
     color: '#fff',
-    fontSize: 11,
-    lineHeight: 15,
-    fontFamily: 'Inter_400Regular',
-    opacity: 0.95,
+    fontSize: 10,
+    fontFamily: 'Inter_600SemiBold',
+    opacity: 0.9,
+    textTransform: 'uppercase',
+    letterSpacing: 0.5,
+  },
+  imageGlow: {
+    position: 'absolute',
+    right: -14,
+    bottom: -14,
+    width: 54,
+    height: 54,
+    borderRadius: 27,
+    backgroundColor: 'rgba(255,255,255,0.14)',
+  },
+  imageFoodMark: {
+    position: 'absolute',
+    right: 12,
+    bottom: 6,
+    color: '#fff',
+    fontSize: 30,
+    lineHeight: 32,
+    fontFamily: 'Inter_700Bold',
+    opacity: 0.2,
   },
   dietFood: {
     color: '#fff',
