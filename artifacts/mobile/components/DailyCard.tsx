@@ -26,6 +26,17 @@ function StatItem({
   );
 }
 
+function getSpecificFoodName(food: string): string {
+  const normalized = food.trim().toLowerCase();
+  if (normalized.includes('fruit')) return 'Apple';
+  if (normalized.includes('berry')) return 'Mixed berries';
+  if (normalized.includes('leafy') || normalized.includes('greens')) return 'Spinach salad';
+  if (normalized.includes('salad')) return 'Spinach salad';
+  if (normalized.includes('nut')) return 'Almonds';
+  if (normalized.includes('vegetable')) return 'Steamed broccoli';
+  return food;
+}
+
 function DietItem({
   food,
   timing,
@@ -37,11 +48,6 @@ function DietItem({
 }) {
   return (
     <View style={styles.dietItem}>
-      <View style={styles.imageFrame} accessibilityLabel={`${food} visual`}>
-        <Text style={styles.imageBadge}>AI visual</Text>
-        <View style={styles.imageGlow} />
-        <Text style={styles.imageFoodMark}>{food.charAt(0).toUpperCase()}</Text>
-      </View>
       <Text style={styles.dietFood}>{food}</Text>
       <Text style={styles.dietTiming}>{timing}</Text>
       <Text style={styles.dietBenefit}>{benefit}</Text>
@@ -51,26 +57,38 @@ function DietItem({
 
 export function DailyCard({ recommendation: rec }: DailyCardProps) {
   const colors = useColors();
-  const waterGoalLiters = rec.waterGoalLiters ?? (rec as any).water_goal_liters ?? 0;
-  const sleepTargetHours = rec.sleepTargetHours ?? (rec as any).sleep_target_hours ?? 0;
+  const rawWaterGoal = Number.isFinite(rec.waterGoalLiters)
+    ? rec.waterGoalLiters
+    : Number.isFinite((rec as any).water_goal_liters)
+    ? (rec as any).water_goal_liters
+    : 0;
+  const rawSleepTarget = Number.isFinite(rec.sleepTargetHours)
+    ? rec.sleepTargetHours
+    : Number.isFinite((rec as any).sleep_target_hours)
+    ? (rec as any).sleep_target_hours
+    : 0;
+  const waterGoalLiters = rawWaterGoal > 0 ? rawWaterGoal : 2.0;
+  const sleepTargetHours = rawSleepTarget > 0 ? rawSleepTarget : 7.5;
   const greeting = rec.greeting ?? (rec as any).greeting ?? '';
-  const personalizedTip = rec.personalizedTip ?? (rec as any).personalized_tip ?? '';
+  const personalizedTip =
+    rec.personalizedTip ?? (rec as any).personalized_tip ??
+    'Track your food, water and sleep to get better personalized insights.';
   const dietPlan = rec.dietPlan ?? (rec as any).diet_plan ?? [];
   const warnings = rec.warnings ?? (rec as any).warnings ?? [];
 
   const items = [
     {
-      food: dietPlan[0]?.food ?? 'Fresh fruit',
+      food: getSpecificFoodName(dietPlan[0]?.food ?? 'Fresh fruit'),
       timing: dietPlan[0]?.timing ?? 'midday',
       benefit: dietPlan[0]?.benefit ?? 'Supports steady energy',
     },
     {
-      food: dietPlan[1]?.food ?? 'Leafy greens',
+      food: getSpecificFoodName(dietPlan[1]?.food ?? 'Leafy greens'),
       timing: dietPlan[1]?.timing ?? 'dinner',
       benefit: dietPlan[1]?.benefit ?? 'Fits a balanced, condition-aware plan',
     },
     {
-      food: dietPlan[2]?.food ?? 'Nuts',
+      food: getSpecificFoodName(dietPlan[2]?.food ?? 'Nuts'),
       timing: dietPlan[2]?.timing ?? 'morning',
       benefit: dietPlan[2]?.benefit ?? 'Supports satiety and nutrition',
     },
@@ -217,47 +235,28 @@ const styles = StyleSheet.create({
   },
   dietItem: {
     flex: 1,
-    gap: 6,
-  },
-  imageFrame: {
-    minHeight: 86,
+    gap: 8,
+    padding: 16,
     borderRadius: 18,
-    padding: 12,
-    justifyContent: 'space-between',
-    backgroundColor: 'rgba(255,255,255,0.16)',
-    overflow: 'hidden',
-  },
-  imageBadge: {
-    color: '#fff',
-    fontSize: 10,
-    fontFamily: 'Inter_600SemiBold',
-    opacity: 0.9,
-    textTransform: 'uppercase',
-    letterSpacing: 0.5,
-  },
-  imageGlow: {
-    position: 'absolute',
-    right: -14,
-    bottom: -14,
-    width: 54,
-    height: 54,
-    borderRadius: 27,
-    backgroundColor: 'rgba(255,255,255,0.14)',
-  },
-  imageFoodMark: {
-    position: 'absolute',
-    right: 12,
-    bottom: 6,
-    color: '#fff',
-    fontSize: 30,
-    lineHeight: 32,
-    fontFamily: 'Inter_700Bold',
-    opacity: 0.2,
+    backgroundColor: 'rgba(255,255,255,0.12)',
   },
   dietFood: {
     color: '#fff',
     fontSize: 15,
     fontFamily: 'Inter_600SemiBold',
+  },
+  dietTiming: {
+    color: '#fff',
+    fontSize: 12,
+    fontFamily: 'Inter_400Regular',
+    opacity: 0.9,
+  },
+  dietBenefit: {
+    color: '#fff',
+    fontSize: 12,
+    fontFamily: 'Inter_400Regular',
+    lineHeight: 17,
+    opacity: 0.9,
   },
   dietTiming: {
     color: '#fff',
