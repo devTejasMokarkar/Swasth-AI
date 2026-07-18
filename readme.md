@@ -19,6 +19,25 @@ pnpm --filter ./artifacts/mobile dev
 pnpm --filter ./artifacts/api-server dev
 ```
 
+## Testing the Chat endpoint (Swasthai)
+
+Quick curl example (server must be running locally on port 3000):
+
+```bash
+curl -X POST http://localhost:3000/api/chat \
+	-H "Content-Type: application/json" \
+	-H "Authorization: Bearer dev_test_user" \
+	-d '{"message":"Hi Swasthai, any tips for staying hydrated?"}'
+```
+
+Or use the provided helper script:
+
+```bash
+./scripts/test-chat.sh "Hi Swasthai, any tips for staying hydrated?" http://localhost:3000 dev_test_user
+```
+
+The endpoint returns JSON: `{ "reply": "...", "tokensUsed": 123 }` on success.
+
 ## Notes
 
 - Use `pnpm install` from the repo root.
